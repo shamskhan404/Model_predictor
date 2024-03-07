@@ -1,5 +1,6 @@
 import sqlite3
-from flask import Flask, render_template, request
+import csv
+from flask import Flask, render_template, request, send_file
 import pickle
 import os
 
@@ -54,8 +55,35 @@ def predict():
 def data():
     db = get_db()
     ratings = db.execute("SELECT * FROM ratings").fetchall()
+
+    with open("/tmp/data.csv", "w") as f:
+        out = csv.writer(f, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        header = [
+            "id",
+            "created",
+            "name",
+            "category",
+            "imdb_rating",
+            "rotten_tomato_rating",
+            "prediction",
+        ]
+        out.writerow(header)
+
+        for rec in ratings:
+            out.writerow([rec[c] for c in header])
     db.close()
-    return render_template("data.html", ratings=ratings)
+    return render_template("data.html", ratings=ratings, value="data.csv")
+
+
+@app.route("/download/<file_name>")
+def download(file_name):
+    try:
+        return send_file(
+            "/tmp/" + file_name,
+            as_attachment=True,
+        )
+    except Exception as e:
+        return str(e)
 
 
 if __name__ == "__main__":
